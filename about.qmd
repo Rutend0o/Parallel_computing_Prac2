@@ -2,8 +2,172 @@
 title: "About"
 ---
 
-About this site
 
 ```{r}
+#| include: false
+#| message: false
+library (foreach)
+library(doParallel)
+library(MASS)
+library(foreach)
+library(iterators)
+```
+
+#Question 1 
+```{r}
+set.seed(1)
+results<-foreach (i= 1:100, .combine = rbind)%do%{
+  sample_data<-rexp(100, rate =1)
+  sample_mean<- mean(sample_data)
+  sample_variance<- var(sample_data)
+  c(sample_mean,sample_variance)
+
+  
+}
+rownames(results) <- NULL # Remove row names
+head(results)
+```
+# Question 2 
+```{r}
+#| echo: false
+#| message: false
+set.seed(1)
+data(galaxies)
+B=10000
+#Bootstrap iteration serial processing 
+boot_median<-numeric(B)
+BS_median<- function (data, B){
+  for (i in 1:B){
+    BS_samples<- sample(data, replace = TRUE)
+    boot_median[i]<- median (BS_samples)
+  }
+  return(boot_median)
+}
+
+system.time({
+  serial_boot<-BS_median(galaxies,10000)
+})
+#print(serial_boot)
+
+
+# Parallel processing 
+cores<- detectCores()
+cores
+cl<-makeCluster(4-1)
+registerDoParallel(cl)
+system.time({
+  parallel_boot<- foreach(i=1:10000, .combine=c, .packages="MASS")%dopar% {
+  median(sample(galaxies, replace=TRUE))}
+})
+stopCluster(cl)
+
+#Chunk parallel
+cores <- detectCores()
+cl <- makeCluster(4 - 1)
+registerDoParallel(cl)
+
+# Each worker computes 1000
+system.time({
+  chunk_parallel_boot <- foreach(i = 1:10, .combine = c, .packages = "MASS") %dopar% {
+    replicate(1000, median(sample(galaxies, replace = TRUE)))
+  }
+})
+
+stopCluster(cl)
+```
+
+
+# Question 3 
+```{r}
+#| echo: false
+closeAllConnections()
+
+set.seed(1)  
+n <- 50      
+B <- 1000  # Bootstrap samples
+c_n <- 1000  
+  
+coverage  <- 0
+
+# Simulation loop to estimate coverage probability
+for (i in 1:c_n) {
+  q3data <- rexp(n, rate = 1)  
+  
+  # Bootstrap CI calculation 
+  boot_means <- replicate(B, mean(sample(q3data, replace = TRUE)))
+  lowerCI <- quantile(boot_means, prob=0.025)
+  upperCI <- quantile(boot_means, prob=0.975)
+  
+  # Check if true mean (1) is within the CI
+  if (1 >= lowerCI && 1 <= upperCI) {
+    coverage <- coverage + 1
+  }
+}  
+
+# Coverage Probability
+coverage_prob <- coverage/ c_n
+coverage_prob 
+
+
+
+
+
+```
+
+# Question 4 
+```{r}
+#| echo: false
+set.seed(1234)
+
+# Manually create 3 vectors, each containing 5 random normal values
+data_list <- list(rnorm(5), rnorm(5), rnorm(5))
+
+# Use foreach to find the maximum value of each vector
+max_values <- foreach(i = data_list, .combine = c) %do% {
+  max(i)  # Find the maximum value in each vector
+}
+print(max_values)
+
+```
+
+# Question 5
+par 
+```{r}
+library(foreach)
+library(iterators)
+set.seed(1234)
+data_list <- list(irnorm(5), irnorm(5), irnorm(5))
+
+# 1. Using parLapply
+cl <- makeCluster(detectCores() - 1)  # Create a cluster with one less core
+clusterExport(cl, list("irnorm"))  # Export irnorm function to cluster
+
+# Measure runtime for parLapply
+system.time({
+  max_values_parLapply <- parLapply(cl, data_list, max)  # Find max value in each vector
+})
+stopCluster(cl)
+print(max_values_parLapply)
+```
+
+foreach
+```{r}
+#| echo: false
+closeAllConnections()
+set.seed(1234)
+system.time({
+  max_values_foreach <- foreach(v = data_list, .combine = c) %do% {
+    max(v)  # Find max value in each vector
+  }
+})
+print( max_values_foreach)
+```
+replica 
+```{r}
+set.seed(1234)
+system.time({
+  max_values_replicate <- replicate(3, max(irnorm(5)))  # Sequentially find max
+})
+print(  max_values_replicate)
 
 ```
