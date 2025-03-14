@@ -1,5 +1,5 @@
 ---
-title: "About"
+title: " "
 ---
 
 
@@ -11,9 +11,14 @@ library(doParallel)
 library(MASS)
 library(foreach)
 library(iterators)
+library(parallel)
 ```
 
-#Question 1 
+
+
+
+# Question 1 
+Random samples from Exponential Distribution using foreach: Mean and variance 
 ```{r}
 set.seed(1)
 results<-foreach (i= 1:100, .combine = rbind)%do%{
@@ -21,15 +26,16 @@ results<-foreach (i= 1:100, .combine = rbind)%do%{
   sample_mean<- mean(sample_data)
   sample_variance<- var(sample_data)
   c(sample_mean,sample_variance)
-
-  
 }
 rownames(results) <- NULL # Remove row names
 head(results)
 ```
+<hr style="border: 2px solid #2196F3;">  <!-- Custom Blue Divider -->
+
 # Question 2 
+Comparison of parallel vs serial bootstrapping for estimating the median of the Galaxies dataset
+
 ```{r}
-#| echo: false
 #| message: false
 set.seed(1)
 data(galaxies)
@@ -43,16 +49,15 @@ BS_median<- function (data, B){
   }
   return(boot_median)
 }
+#serial processing
 
 system.time({
   serial_boot<-BS_median(galaxies,10000)
 })
-#print(serial_boot)
 
-
-# Parallel processing 
+#parallel processing 
 cores<- detectCores()
-cores
+
 cl<-makeCluster(4-1)
 registerDoParallel(cl)
 system.time({
@@ -60,12 +65,10 @@ system.time({
   median(sample(galaxies, replace=TRUE))}
 })
 stopCluster(cl)
-
-#Chunk parallel
+#batch parallel computing
 cores <- detectCores()
 cl <- makeCluster(4 - 1)
 registerDoParallel(cl)
-
 # Each worker computes 1000
 system.time({
   chunk_parallel_boot <- foreach(i = 1:10, .combine = c, .packages = "MASS") %dopar% {
@@ -75,24 +78,24 @@ system.time({
 
 stopCluster(cl)
 ```
+Based on the results, the runtime for serial processing is low (1.08 seconds) but it still took longer compared to batch parallel processing. Serial processing works well for smaller datasets or tasks where the overhead of parallel processing might outweigh its benefits. The time for parallel processing is the highest (6.61 seconds), suggesting that for this task and dataset size parallel computing didn't  speed up the processing.The overhead of managing multiple cores and data transfer between them likely outweighed the benefits of parallel computing, especially since each iteration in bootstrapping is relatively small and lightweight.The batch parallel processing (processing 1000 bootstrap samples at a time) is faster than the other two. it has a much lower total runtime (0.61 seconds). This indicates that grouping multiple iterations into larger batches for parallel computing helps to minimize the overhead, making it more efficient. 
+
+<hr style="border: 2px solid #2196F3;">  <!-- Custom Blue Divider -->
 
 
 # Question 3 
+Estimate coverage of a percentile bootstrap confidence interval
 ```{r}
-#| echo: false
 closeAllConnections()
-
 set.seed(1)  
 n <- 50      
 B <- 1000  # Bootstrap samples
 c_n <- 1000  
   
 coverage  <- 0
-
 # Simulation loop to estimate coverage probability
 for (i in 1:c_n) {
   q3data <- rexp(n, rate = 1)  
-  
   # Bootstrap CI calculation 
   boot_means <- replicate(B, mean(sample(q3data, replace = TRUE)))
   lowerCI <- quantile(boot_means, prob=0.025)
@@ -106,68 +109,61 @@ for (i in 1:c_n) {
 
 # Coverage Probability
 coverage_prob <- coverage/ c_n
-coverage_prob 
-
-
-
-
+cat("coverage\n", coverage_prob )
 
 ```
+<hr style="border: 2px solid #2196F3;">  <!-- Custom Blue Divider -->
+
 
 # Question 4 
+Finding the maximum Values in Random Vectors Using foreach and irnorm
 ```{r}
-#| echo: false
 set.seed(1234)
-
-# Manually create 3 vectors, each containing 5 random normal values
-data_list <- list(rnorm(5), rnorm(5), rnorm(5))
-
-# Use foreach to find the maximum value of each vector
-max_values <- foreach(i = data_list, .combine = c) %do% {
-  max(i)  # Find the maximum value in each vector
+irnorm <- function(n) rnorm(n)
+q4data  <- lapply(1:3, function(x) irnorm(5))
+max_values <- foreach(i = q4data, .combine = c) %do% {
+  max(i) 
 }
 print(max_values)
 
 ```
+<hr style="border: 2px solid #2196F3;">  <!-- Custom Blue Divider -->
 
-# Question 5
-par 
+
+# Question 5 
+Comparing run time between parLapply, foreach and replicate
 ```{r}
-library(foreach)
-library(iterators)
+#| message: false
+closeAllConnections()
+irnorm <- function(n) rnorm(n)
 set.seed(1234)
-data_list <- list(irnorm(5), irnorm(5), irnorm(5))
+q4data <- lapply(1:3, function(x) irnorm(5))
 
-# 1. Using parLapply
-cl <- makeCluster(detectCores() - 1)  # Create a cluster with one less core
-clusterExport(cl, list("irnorm"))  # Export irnorm function to cluster
-
-# Measure runtime for parLapply
+#ParLapply
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, list("irnorm"))  
+invisible(clusterEvalQ(cl, library(iterators)))  
 system.time({
-  max_values_parLapply <- parLapply(cl, data_list, max)  # Find max value in each vector
+  max_values_parLapply <- parLapply(cl, q4data, max)  
 })
 stopCluster(cl)
-print(max_values_parLapply)
-```
 
-foreach
-```{r}
-#| echo: false
-closeAllConnections()
+#Foreach method
 set.seed(1234)
 system.time({
-  max_values_foreach <- foreach(v = data_list, .combine = c) %do% {
-    max(v)  # Find max value in each vector
+  max_values_foreach <- foreach(v = q4data, .combine = c) %do% {
+    max(v)  
   }
 })
-print( max_values_foreach)
-```
-replica 
-```{r}
+
+#replicate method
 set.seed(1234)
 system.time({
-  max_values_replicate <- replicate(3, max(irnorm(5)))  # Sequentially find max
+  max_values_replicate <- replicate(3, max(irnorm(5))) 
 })
-print(  max_values_replicate)
+max_values_foreach
+max_values_replicate
+
 
 ```
+All methods have quick runtimes for this problem.For small datasets, the parallel execution times (parLapply, foreach) may not show significant benefits over a serial methods eg replicate. However as the problem becomes big (more iterations, more random values), the efficiency of parallel processing becomes more evident. In such cases, their runtime would decrease compared to serial processing
