@@ -1,17 +1,22 @@
 project:
   type: website
+  output-dir: _site
 
 website:
-  title: "Parallel_computing_Prac2"
+  title: "Assignment 2"
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: about.qmd
+        text: Questions
 
 format:
   html:
-    theme: cosmo
+    theme: quarts
+    mainfoint: arial
+    fontcolor: "#938d93"
+    linkcolor: "#992597"
     css: styles.css
     toc: true
 
